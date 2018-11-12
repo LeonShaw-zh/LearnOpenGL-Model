@@ -133,6 +133,7 @@ int main()
         colorShader.setMat4("projection", projection);
         glm::mat4 normalMat = glm::transpose(glm::inverse(model)); // 法线矩阵
         colorShader.setMat4("normalMat", normalMat);
+        colorShader.setFloat("material.shininess", 32.0f);
         nanosuit.Draw(colorShader);
 
         // 绘制光源
