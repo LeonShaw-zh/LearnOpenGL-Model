@@ -7,9 +7,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include "stb_image.h"
 #include "Shader.h"
 #include "Camera.h"
+#include "Model.h"
 using namespace std;
 
 GLFWwindow* window;
@@ -30,25 +30,12 @@ glm::vec3 pointLightPositions[] = {
     glm::vec3(-4.0f,  2.0f, -12.0f),
     glm::vec3( 0.0f,  0.0f, -3.0f)
 };
-glm::vec3 cubePositions[] = {
-    glm::vec3( 0.0f,  0.0f,  0.0f),
-    glm::vec3( 2.0f,  5.0f, -15.0f),
-    glm::vec3(-1.5f, -2.2f, -2.5f),
-    glm::vec3(-3.8f, -2.0f, -12.3f),
-    glm::vec3( 2.4f, -0.4f, -3.5f),
-    glm::vec3(-1.7f,  3.0f, -7.5f),
-    glm::vec3( 1.3f, -2.0f, -2.5f),
-    glm::vec3( 1.5f,  2.0f, -2.5f),
-    glm::vec3( 1.5f,  0.2f, -1.5f),
-    glm::vec3(-1.3f,  1.0f, -1.5f)
-};
 
 int initialize();
 int initializeGLFW();
 int initializeGLAD();
 void makeCube(unsigned int VAO);
 void makeLight(unsigned int VAO);
-void readTex(unsigned int texture, const char* texturePath);
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -65,23 +52,13 @@ int main()
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
-    Shader colorShader("../src/shader/1.color.vs", "../src/shader/1.color.fs");
+    Shader colorShader("../src/shader/2.color.vs", "../src/shader/2.color.fs");
     Shader lampShader("../src/shader/1.lamp.vs", "../src/shader/1.lamp.fs");
 
-    unsigned int VAOCube;
-    glGenVertexArrays(1, &VAOCube);
-    makeCube(VAOCube);
     unsigned int VAOLight;
     glGenVertexArrays(1, &VAOLight);
     makeLight(VAOLight);
-    unsigned int diffuseMap, specularMap;
-    glGenTextures(1, &diffuseMap);
-    glGenTextures(1, &specularMap);
-    readTex(diffuseMap, "../src/tex/container2.png");
-    readTex(specularMap, "../src/tex/container2_specular.png");
-    colorShader.use();
-    colorShader.setInt("material.diffuse", 0);
-    colorShader.setInt("material.specular", 1);
+    Model nanosuit = Model("../src/model/nanosuit/nanosuit.obj");
 
     glEnable(GL_DEPTH_TEST);
 
@@ -93,6 +70,7 @@ int main()
         glClear(GL_DEPTH_BUFFER_BIT);
 
         // 生成观察矩阵和投影矩阵
+        glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screenWidth / screenHeight, 0.1f, 100.0f);
 
@@ -100,11 +78,6 @@ int main()
         colorShader.use();
         // 片段着色器所需的参数
         colorShader.setVec3("viewPos", camera.Position);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, diffuseMap);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, specularMap);
-        colorShader.setFloat("material.shininess", 64.0f);
         // dir light
         colorShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
         colorShader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
@@ -154,20 +127,13 @@ int main()
         colorShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
         colorShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
         // 顶点着色器需要的参数
+        model = glm::scale(model, glm::vec3(0.15f));
+        colorShader.setMat4("model", model);
         colorShader.setMat4("view", view);
         colorShader.setMat4("projection", projection);
-        glm::mat4 model;
-        for(unsigned int i = 0; i < 10; i++){
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i;
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-            glm::mat4 normalMat = glm::transpose(glm::inverse(model)); // 法线矩阵
-            colorShader.setMat4("model", model);
-            colorShader.setMat4("normalMat", normalMat);
-            glBindVertexArray(VAOCube);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+        glm::mat4 normalMat = glm::transpose(glm::inverse(model)); // 法线矩阵
+        colorShader.setMat4("normalMat", normalMat);
+        nanosuit.Draw(colorShader);
 
         // 绘制光源
         lampShader.use();
@@ -296,31 +262,6 @@ void makeCube(unsigned int VAO){
 
 void makeLight(unsigned int VAO){
     makeCube(VAO);
-}
-
-void readTex(unsigned int texture, const char* texturePath){
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    stbi_set_flip_vertically_on_load(true);
-    int width, height, nrChannels;
-    unsigned char *data = stbi_load(texturePath, &width, &height, &nrChannels, 0);
-    if(data){
-        GLenum format;
-        if (nrChannels == 1)
-            format = GL_RED;
-        else if (nrChannels == 3)
-            format = GL_RGB;
-        else if (nrChannels == 4)
-            format = GL_RGBA;
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }else{
-        cout << "Failed to load texture" << endl;
-    }
-    stbi_image_free(data);
 }
 
 void processInput(GLFWwindow *window){

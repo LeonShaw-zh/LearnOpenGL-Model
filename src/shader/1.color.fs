@@ -1,12 +1,6 @@
 #version 330 core
 out vec4 FragColor;
 
-struct Material{
-    sampler2D diffuse;
-    sampler2D specular;
-    float shininess;
-};
-
 struct DirLight {
     vec3 direction;
 
@@ -42,6 +36,12 @@ struct SpotLight {
     vec3 specular;       
 };
 
+struct Material{
+    sampler2D diffuse;
+    sampler2D specular;
+    float shininess;
+};
+
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 viewDir);
 vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 viewDir);
@@ -53,10 +53,10 @@ in vec3 Normal;
 in vec2 TexCoords;
 
 uniform vec3 viewPos;
-uniform Material material;
 uniform DirLight dirLight;
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform SpotLight spotLight;
+uniform Material material;
 
 void main(){
     // 属性

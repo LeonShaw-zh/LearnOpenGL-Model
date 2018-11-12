@@ -38,7 +38,7 @@ default: all
 OPENGL_PATH := openGL
 OPENGL_INCLUD := $(OPENGL_PATH)/include
 OPENGL_LIBS := $(OPENGL_PATH)/libs
-LINKLIBS := -lstbimage -lglfw3dll -lglfw3 -lglad
+LINKLIBS := -lassimp.dll -lstbimage -lglfw3dll -lglfw3 -lglad
 
 # non-phony targets
 $(TARGET): $(OBJ)
